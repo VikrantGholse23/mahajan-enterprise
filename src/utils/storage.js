@@ -1,14 +1,26 @@
 import { supabase } from './supabase';
 
-// LocalStorage persistence engine with pre-seeded data from Excel sheets
+// LocalStorage persistence engine - Fresh Initial State (Zero Dummy Data)
 
 const STORAGE_KEYS = {
   SETTINGS: 'rme_system_settings',
-  STATEMENTS: 'rme_procurement_statements',
-  INVOICES: 'rme_sale_invoices',
+  STATEMENTS: 'rme_procurement_statements_v2',
+  INVOICES: 'rme_sale_invoices_v2',
   PARTIES: 'rme_master_parties',
-  AUTH: 'rme_current_user'
+  AUTH: 'rme_current_user',
+  CLEAN_FLAG: 'rme_cleared_initial_dummy_v2'
 };
+
+// Auto-clean old sample/dummy data from user's browser localStorage
+if (typeof window !== 'undefined' && window.localStorage) {
+  if (!localStorage.getItem(STORAGE_KEYS.CLEAN_FLAG)) {
+    localStorage.removeItem('rme_procurement_statements');
+    localStorage.removeItem('rme_sale_invoices');
+    localStorage.setItem(STORAGE_KEYS.STATEMENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.CLEAN_FLAG, 'true');
+  }
+}
 
 const DEFAULT_SETTINGS = {
   enterpriseName: 'R. MAHAJAN ENTERPRISE',
@@ -46,96 +58,8 @@ const DEFAULT_PARTIES = [
   { id: 'p13', name: 'Maira Food Mill', type: 'Mill', phone: '9822200004', city: 'Saoner' }
 ];
 
-const DEFAULT_STATEMENTS = [
-  {
-    id: 'stmt-001',
-    statementNo: 'RME/STMT/2026/001',
-    date: '2026-10-14',
-    millName: 'SHREE MOHAN INDUSTRIES Pvt. Ltd.',
-    commodity: 'Toor',
-    dispatchBags: 115,
-    dispatchExtraKg: 35,
-    lots: [
-      { id: 'l1', brokerName: 'Dilip Jain', weight: 1.775, rate: 10200, billAmount: 18105, brokerage: 271.58, total: 18376.58, chequeNo: 'CHQ-4401', stockStatus: 'Dispatched' },
-      { id: 'l2', brokerName: 'Roshan Chandak', weight: 5.735, rate: 10251.39, billAmount: 58791.72, brokerage: 881.88, total: 59673.60, chequeNo: 'CHQ-4402', stockStatus: 'Dispatched' }
-    ],
-    totalBags: 115,
-    totalWeight: 7.51, // in Quintals
-    pureBillAmount: 76896.72,
-    totalBrokerage: 1153.45,
-    lotPurchaseTotal: 78050.17,
-    netPadta: 10239.24,
-    bardanaRateKg: 0.6,
-    bardanaWeight: 0.0693,
-    grossWeight: 7.5793,
-    mandiSheshPct: 1.05,
-    mandiSheshAmount: 807.42,
-    commissionPct: 1.5,
-    commissionAmount: 1153.45,
-    bardanaCharges: 0,
-    workerCharges: 1617.54,
-    transportCharges: 303.17,
-    totalExpenses: 3881.58,
-    grandTotal: 81931.75,
-    grossPadta: 10809.90
-  },
-  {
-    id: 'stmt-002',
-    statementNo: 'RME/STMT/2026/002',
-    date: '2026-08-01',
-    millName: 'Pawansut Dall Mill pvt ltd.',
-    commodity: 'Toor',
-    dispatchBags: 50,
-    dispatchExtraKg: 32,
-    lots: [
-      { id: 'l3', brokerName: 'Dilip Jain', weight: 28.275, rate: 7932, billAmount: 224277.30, brokerage: 3364.16, total: 227641.46, chequeNo: 'CHQ-3211', stockStatus: 'Cleared' },
-      { id: 'l4', brokerName: 'Jagdish Thakare', weight: 0.70, rate: 7851, billAmount: 5495.70, brokerage: 82.44, total: 5578.14, chequeNo: 'CHQ-3212', stockStatus: 'Cleared' },
-      { id: 'l5', brokerName: 'Bhavrao Gonmare', weight: 3.27, rate: 7851, billAmount: 25672.77, brokerage: 385.09, total: 26057.86, chequeNo: 'CHQ-3213', stockStatus: 'Cleared' },
-      { id: 'l6', brokerName: 'Dhonbaji Nirgude', weight: 0.58, rate: 7851, billAmount: 4553.58, brokerage: 68.30, total: 4621.88, chequeNo: 'CHQ-3214', stockStatus: 'Cleared' }
-    ],
-    totalBags: 50,
-    totalWeight: 32.825, // in Quintals
-    pureBillAmount: 259999.35,
-    totalBrokerage: 3899.99,
-    lotPurchaseTotal: 263899.34,
-    netPadta: 7920.77,
-    bardanaRateKg: 0.6,
-    bardanaWeight: 0.303,
-    grossWeight: 33.128,
-    mandiSheshPct: 1.05,
-    mandiSheshAmount: 2729.99,
-    commissionPct: 1.0,
-    commissionAmount: 2599.99,
-    bardanaCharges: 1262.31,
-    workerCharges: 706.89,
-    transportCharges: 1490.76,
-    totalExpenses: 8789.95,
-    grandTotal: 272689.29,
-    grossPadta: 8307.37
-  }
-];
-
-const DEFAULT_INVOICES = [
-  {
-    id: 'inv-001',
-    invoiceNo: 'RME/2026-27/001',
-    date: '2026-12-10',
-    buyerName: 'SHREE MOHAN INDUSTRIES Pvt. Ltd.',
-    buyerAddress: 'Nagpur',
-    broker: 'Suresh Bhai',
-    vehicleNo: 'MH 40 CM 8588',
-    transporter: 'Local Mandi Transport',
-    items: [
-      { id: 'it1', description: 'Toor', bags: 42, grossWeight: 27.57, netWeight: 27.315, rate: 10845.48, amount: 298978.91 }
-    ],
-    totalBags: 42,
-    totalAmount: 298978.91,
-    grandTotal: 298978,
-    amountInWords: 'Rupees Two Lakh Ninety-Eight Thousand Nine Hundred Seventy-Eight Only',
-    paymentStatus: 'Pending',
-    paymentDueDate: '2026-12-20'
-  }
-];
+const DEFAULT_STATEMENTS = [];
+const DEFAULT_INVOICES = [];
 
 export function getSystemSettings() {
   const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);

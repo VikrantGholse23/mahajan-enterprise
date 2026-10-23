@@ -29,20 +29,19 @@ export default function MandiStatement({ onSaveSuccess }) {
   // Statement Header State
   const [statementNo, setStatementNo] = useState(`RME/STMT/${new Date().getFullYear()}/${String(Math.floor(Math.random() * 900) + 100)}`);
   const [statementDate, setStatementDate] = useState(new Date().toISOString().slice(0, 10));
-  const [selectedMill, setSelectedMill] = useState('SHREE MOHAN INDUSTRIES Pvt. Ltd.');
+  const [selectedMill, setSelectedMill] = useState('');
   const [customMill, setCustomMill] = useState('');
   const [commodity, setCommodity] = useState('Toor');
 
   // Broker Lots State (Split inputs: Qtl and KG for fast Mandi entry)
-  // e.g. 566.5 kg is entered as 5 in qtl box and 66.5 in kg box -> 5.665 Quintals
+  // Clean initial row ready for fresh entry
   const [lots, setLots] = useState([
-    { id: '1', brokerName: 'Dilip Jain', qtl: 1, kg: 77.5, rate: 10200, chequeNo: '', stockStatus: 'Cleared' },
-    { id: '2', brokerName: 'Roshan Chandak', qtl: 5, kg: 73.5, rate: 10251.39, chequeNo: '', stockStatus: 'Cleared' }
+    { id: '1', brokerName: '', qtl: '', kg: '', rate: '', chequeNo: '', stockStatus: 'Cleared' }
   ]);
 
   // Consignment Dispatch Bags (Optional, for Mill packing & Bardana tare)
-  const [dispatchBags, setDispatchBags] = useState(115);
-  const [dispatchExtraKg, setDispatchExtraKg] = useState(35);
+  const [dispatchBags, setDispatchBags] = useState('');
+  const [dispatchExtraKg, setDispatchExtraKg] = useState('');
 
   // Mandi Expense Parameters State
   const [bardanaRateKg, setBardanaRateKg] = useState(settings.defaultBardanaTareKg || 0.6);
@@ -306,6 +305,7 @@ export default function MandiStatement({ onSaveSuccess }) {
                 onChange={(e) => setSelectedMill(e.target.value)}
                 className="w-full font-bold text-slate-900 bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 focus:ring-1 focus:ring-amber-500 shadow-sm"
               >
+                <option value="">-- Select Target Dal Mill --</option>
                 {millParties.map(m => (
                   <option key={m.id} value={m.name}>{m.name}</option>
                 ))}
@@ -388,9 +388,11 @@ export default function MandiStatement({ onSaveSuccess }) {
                       onChange={(e) => handleUpdateLot(lot.id, 'brokerName', e.target.value)}
                       className="w-full font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                     >
+                      <option value="">-- Select Broker / Farmer --</option>
                       {brokerParties.map(bp => (
                         <option key={bp.id} value={bp.name}>{bp.name}</option>
                       ))}
+                      <option value="Direct / Farmer">Direct / Farmer</option>
                     </select>
                   </td>
 

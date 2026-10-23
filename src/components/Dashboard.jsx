@@ -181,7 +181,14 @@ export default function Dashboard({ statements, invoices, onNavigate }) {
             </div>
 
             <div className="divide-y divide-slate-100 mt-2">
-              {statements.slice(0, 4).map((stmt) => (
+              {statements.length === 0 ? (
+                <div className="py-10 text-center text-slate-400">
+                  <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-slate-300 opacity-60" />
+                  <p className="text-xs font-bold text-slate-500">No buying statements entered yet</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Click below to record your first Mandi purchase lot</p>
+                </div>
+              ) : (
+                statements.slice(0, 4).map((stmt) => (
                 <div 
                   key={stmt.id} 
                   onClick={() => onNavigate('procurement')}
@@ -217,7 +224,8 @@ export default function Dashboard({ statements, invoices, onNavigate }) {
                     </div>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -249,7 +257,14 @@ export default function Dashboard({ statements, invoices, onNavigate }) {
             </div>
 
             <div className="divide-y divide-slate-100 mt-2">
-              {invoices.slice(0, 4).map((inv) => (
+              {invoices.length === 0 ? (
+                <div className="py-10 text-center text-slate-400">
+                  <Receipt className="w-8 h-8 mx-auto mb-2 text-slate-300 opacity-60" />
+                  <p className="text-xs font-bold text-slate-500">No sale invoices generated yet</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Click below to create your first mill dispatch bill</p>
+                </div>
+              ) : (
+                invoices.slice(0, 4).map((inv) => (
                 <div 
                   key={inv.id} 
                   onClick={() => onNavigate('sales')}
@@ -285,7 +300,8 @@ export default function Dashboard({ statements, invoices, onNavigate }) {
                     </span>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 

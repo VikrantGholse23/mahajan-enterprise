@@ -25,17 +25,17 @@ export default function SaleInvoice({ onSaveSuccess }) {
   // Form State
   const [invoiceNo, setInvoiceNo] = useState(`RME/${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}/${String(Math.floor(Math.random() * 900) + 100)}`);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
-  const [buyerName, setBuyerName] = useState('SHREE MOHAN INDUSTRIES Pvt. Ltd.');
+  const [buyerName, setBuyerName] = useState('');
   const [customBuyer, setCustomBuyer] = useState('');
-  const [buyerAddress, setBuyerAddress] = useState('Nagpur');
-  const [broker, setBroker] = useState('Suresh Bhai');
-  const [vehicleNo, setVehicleNo] = useState('MH 40 CM 8588');
-  const [transporter, setTransporter] = useState('Local Mandi Transport');
+  const [buyerAddress, setBuyerAddress] = useState('');
+  const [broker, setBroker] = useState('');
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [transporter, setTransporter] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('Unpaid');
 
-  // Line Items State
+  // Line Items State - Fresh Empty Row
   const [items, setItems] = useState([
-    { id: '1', description: 'Toor', bags: 42, grossWeight: 27.57, tarePerBag: 0.006, rate: 10845.48 }
+    { id: '1', description: 'Toor', bags: '', grossWeight: '', tarePerBag: 0.006, rate: '' }
   ]);
 
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -279,6 +279,7 @@ export default function SaleInvoice({ onSaveSuccess }) {
                 onChange={(e) => setBuyerName(e.target.value)}
                 className="w-full font-black text-xs md:text-sm text-slate-900 border border-slate-300 rounded-lg p-2 mb-1.5 focus:ring-1 focus:ring-amber-500"
               >
+                <option value="">-- Select Buyer / Consignee --</option>
                 {millParties.map(m => (
                   <option key={m.id} value={m.name}>{m.name}</option>
                 ))}
@@ -330,6 +331,7 @@ export default function SaleInvoice({ onSaveSuccess }) {
                   onChange={(e) => setBroker(e.target.value)}
                   className="w-full font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 print:px-0 print:py-0 print:border-0 print:bg-transparent text-xs print:text-[11px]"
                 >
+                  <option value="">-- Select Broker --</option>
                   {brokerParties.map(bp => (
                     <option key={bp.id} value={bp.name}>{bp.name}</option>
                   ))}
