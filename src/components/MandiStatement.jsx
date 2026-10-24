@@ -34,9 +34,9 @@ export default function MandiStatement({ onSaveSuccess }) {
   const [commodity, setCommodity] = useState('Toor');
 
   // Broker Lots State (Split inputs: Qtl and KG for fast Mandi entry)
-  // Clean initial row ready for fresh entry
+  // Clean initial row ready for fresh entry with Bi-directional Rate <-> Bill Amount calculation
   const [lots, setLots] = useState([
-    { id: '1', brokerName: '', qtl: '', kg: '', rate: '', chequeNo: '', stockStatus: 'Cleared' }
+    { id: '1', brokerName: '', qtl: '', kg: '', rate: '', billAmount: '', chequeNo: '', stockStatus: 'Cleared', lastEdited: 'rate' }
   ]);
 
   // Consignment Dispatch Bags (Optional, for Mill packing & Bardana tare)
@@ -59,17 +59,32 @@ export default function MandiStatement({ onSaveSuccess }) {
     const q = parseFloat(lot.qtl) || 0;
     const k = parseFloat(lot.kg) || 0;
     const w = parseFloat((q + (k / 100)).toFixed(3)); // Total in Quintals
-    const r = parseFloat(lot.rate) || 0;             // ₹ per Quintal
-    const billAmt = w * r;
-    const brokerage = billAmt * 0.015; // 1.5%
-    const totalLot = billAmt + brokerage;
+    
+    let rate = 0;
+    let billAmt = 0;
+
+    if (lot.lastEdited === 'billAmount') {
+      billAmt = parseFloat(lot.billAmount) || 0;
+      rate = w > 0 
+        ? (lot.rate !== '' && lot.rate !== undefined && !isNaN(parseFloat(lot.rate)) ? parseFloat(lot.rate) : (billAmt / w))
+        : (parseFloat(lot.rate) || 0);
+    } else {
+      rate = parseFloat(lot.rate) || 0;
+      billAmt = lot.billAmount !== '' && lot.billAmount !== undefined && !isNaN(parseFloat(lot.billAmount))
+        ? parseFloat(lot.billAmount)
+        : (w * rate);
+    }
+
+    const brokerage = parseFloat((billAmt * 0.015).toFixed(2)); // 1.5%
+    const totalLot = parseFloat((billAmt + brokerage).toFixed(2));
+
     return {
       ...lot,
       qtl: lot.qtl !== undefined ? lot.qtl : q,
       kg: lot.kg !== undefined ? lot.kg : k,
       weight: w,
-      rate: r,
-      billAmount: billAmt,
+      rate: parseFloat(rate.toFixed(2)),
+      billAmount: parseFloat(billAmt.toFixed(2)),
       brokerage: brokerage,
       totalLotAmount: totalLot
     };
@@ -106,19 +121,97 @@ export default function MandiStatement({ onSaveSuccess }) {
       ...lots,
       {
         id: String(Date.now()),
-        brokerName: brokerParties[0]?.name || 'Dilip Jain',
+        brokerName: brokerParties[0]?.name || '',
         qtl: '',
         kg: '',
         rate: '',
+        billAmount: '',
         chequeNo: '',
-        stockStatus: 'Cleared'
+        stockStatus: 'Cleared',
+        lastEdited: 'rate'
       }
     ]);
   };
 
-  // Update Lot Field
+  // General Field Update (Broker, Cheque, Status)
   const handleUpdateLot = (id, field, value) => {
     setLots(lots.map(l => l.id === id ? { ...l, [field]: value } : l));
+  };
+
+  // Weight update (Qtl or KG) -> recalculates Rate or Bill Amount based on lastEdited
+  const handleUpdateWeight = (id, field, value) => {
+    setLots(prevLots => prevLots.map(l => {
+      if (l.id !== id) return l;
+      const nextLot = { ...l, [field]: value };
+      const q = parseFloat(field === 'qtl' ? value : nextLot.qtl) || 0;
+      const k = parseFloat(field === 'kg' ? value : nextLot.kg) || 0;
+      const w = parseFloat((q + (k / 100)).toFixed(3)); // Weight in Quintals
+
+      if (w > 0) {
+        if (nextLot.lastEdited === 'billAmount' && nextLot.billAmount !== '' && !isNaN(parseFloat(nextLot.billAmount))) {
+          const b = parseFloat(nextLot.billAmount);
+          nextLot.rate = parseFloat((b / w).toFixed(2));
+        } else if (nextLot.rate !== '' && !isNaN(parseFloat(nextLot.rate))) {
+          const r = parseFloat(nextLot.rate);
+          nextLot.billAmount = parseFloat((w * r).toFixed(2));
+        }
+      }
+      return nextLot;
+    }));
+  };
+
+  // Rate update -> recalculates Bill Amount: Bill Amount = Weight * Rate
+  const handleUpdateRate = (id, value) => {
+    setLots(prevLots => prevLots.map(l => {
+      if (l.id !== id) return l;
+      const q = parseFloat(l.qtl) || 0;
+      const k = parseFloat(l.kg) || 0;
+      const w = parseFloat((q + (k / 100)).toFixed(3));
+
+      if (value === '') {
+        return { ...l, rate: '', billAmount: '', lastEdited: 'rate' };
+      }
+
+      const r = parseFloat(value);
+      let bAmt = l.billAmount;
+      if (!isNaN(r) && w > 0) {
+        bAmt = parseFloat((w * r).toFixed(2));
+      }
+
+      return {
+        ...l,
+        rate: value,
+        billAmount: bAmt !== undefined && bAmt !== null && bAmt !== '' ? bAmt : '',
+        lastEdited: 'rate'
+      };
+    }));
+  };
+
+  // Bill Amount update -> recalculates Rate: Rate = Bill Amount / Weight
+  const handleUpdateBillAmount = (id, value) => {
+    setLots(prevLots => prevLots.map(l => {
+      if (l.id !== id) return l;
+      const q = parseFloat(l.qtl) || 0;
+      const k = parseFloat(l.kg) || 0;
+      const w = parseFloat((q + (k / 100)).toFixed(3));
+
+      if (value === '') {
+        return { ...l, billAmount: '', rate: '', lastEdited: 'billAmount' };
+      }
+
+      const b = parseFloat(value);
+      let r = l.rate;
+      if (!isNaN(b) && w > 0) {
+        r = parseFloat((b / w).toFixed(2));
+      }
+
+      return {
+        ...l,
+        billAmount: value,
+        rate: r !== undefined && r !== null && r !== '' ? r : '',
+        lastEdited: 'billAmount'
+      };
+    }));
   };
 
   // Delete Lot Row
@@ -368,8 +461,14 @@ export default function MandiStatement({ onSaveSuccess }) {
                 <th className="py-3 px-3 text-center min-w-[220px] border-r border-slate-800">
                   Weight (Quintal + KG)
                 </th>
-                <th className="py-3 px-3 text-right w-28 border-r border-slate-800">Rate (₹/Qtl)</th>
-                <th className="py-3 px-3 text-right w-36 border-r border-slate-800">Bill Amount (₹)</th>
+                <th className="py-3 px-3 text-right w-32 border-r border-slate-800">
+                  Rate (₹/Qtl)
+                  <span className="block text-[9px] font-normal text-amber-300/80">Input or Auto</span>
+                </th>
+                <th className="py-3 px-3 text-right w-36 border-r border-slate-800">
+                  Bill Amount (₹)
+                  <span className="block text-[9px] font-normal text-amber-300/80">Input or Auto</span>
+                </th>
                 <th className="py-3 px-3 text-right w-32 border-r border-slate-800">Brokerage (1.5%)</th>
                 <th className="py-3 px-3 text-right w-36 border-r border-slate-800">Total Bill (₹)</th>
                 <th className="py-3 px-3 w-32 border-r border-slate-800">Cheque / UTR</th>
@@ -406,7 +505,7 @@ export default function MandiStatement({ onSaveSuccess }) {
                           type="number"
                           step="1"
                           value={lot.qtl !== undefined && lot.qtl !== null ? lot.qtl : ''}
-                          onChange={(e) => handleUpdateLot(lot.id, 'qtl', e.target.value)}
+                          onChange={(e) => handleUpdateWeight(lot.id, 'qtl', e.target.value)}
                           className="w-full text-right font-mono font-black text-slate-900 bg-slate-50 border border-slate-300 rounded-lg pr-8 pl-1.5 py-1.5 text-xs focus:bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                           placeholder="0"
                         />
@@ -421,7 +520,7 @@ export default function MandiStatement({ onSaveSuccess }) {
                           type="number"
                           step="0.1"
                           value={lot.kg !== undefined && lot.kg !== null ? lot.kg : ''}
-                          onChange={(e) => handleUpdateLot(lot.id, 'kg', e.target.value)}
+                          onChange={(e) => handleUpdateWeight(lot.id, 'kg', e.target.value)}
                           className="w-full text-right font-mono font-black text-slate-900 bg-slate-50 border border-slate-300 rounded-lg pr-7 pl-1.5 py-1.5 text-xs focus:bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                           placeholder="0.0"
                         />
@@ -449,17 +548,27 @@ export default function MandiStatement({ onSaveSuccess }) {
                       <input
                         type="number"
                         step="0.01"
-                        value={lot.rate || ''}
-                        onChange={(e) => handleUpdateLot(lot.id, 'rate', e.target.value)}
+                        value={lot.rate !== undefined && lot.rate !== null ? lot.rate : ''}
+                        onChange={(e) => handleUpdateRate(lot.id, e.target.value)}
                         className="w-full text-right font-mono font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-lg pl-5 pr-2 py-1.5 focus:bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                         placeholder="0.00"
                       />
                     </div>
                   </td>
 
-                  {/* Bill Amount = Weight × Rate */}
-                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 border-r border-slate-200">
-                    {lot.billAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {/* Bill Amount in ₹ (Bi-directional Input: Rate <-> Bill Amount) */}
+                  <td className="py-2 px-2 border-r border-slate-200">
+                    <div className="relative">
+                      <span className="absolute left-2 top-2 text-[10px] font-bold text-slate-400 pointer-events-none">₹</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={lot.billAmount !== undefined && lot.billAmount !== null ? lot.billAmount : ''}
+                        onChange={(e) => handleUpdateBillAmount(lot.id, e.target.value)}
+                        className="w-full text-right font-mono font-black text-slate-900 bg-amber-50/60 border border-amber-300 rounded-lg pl-5 pr-2 py-1.5 focus:bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                        placeholder="0.00"
+                      />
+                    </div>
                   </td>
 
                   {/* Brokerage 1.5% */}
@@ -526,14 +635,19 @@ export default function MandiStatement({ onSaveSuccess }) {
         </div>
 
         {/* Add Row Button Strip */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 no-print flex justify-between items-center">
-          <button
-            onClick={handleAddLot}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Add Broker Row</span>
-          </button>
+        <div className="p-3 bg-slate-50 border-t border-slate-200 no-print flex flex-wrap justify-between items-center gap-2">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleAddLot}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Add Broker Row</span>
+            </button>
+            <span className="text-[11px] font-bold text-amber-900 bg-amber-100/70 border border-amber-300/80 px-2.5 py-1 rounded-lg">
+              💡 Tip: Enter either Rate OR Bill Amount — the other calculates automatically!
+            </span>
+          </div>
           <span className="text-xs font-bold text-slate-500">
             {calculatedLots.length} Lots included in statement
           </span>
