@@ -12,42 +12,37 @@ import {
   Cloud
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { getProcurementStatements, getSaleInvoices } from '../utils/storage';
+import { getProcurementStatements, getSaleInvoices, getSystemSettings } from '../utils/storage';
+import { buildStatementWorksheet } from '../utils/exportStatementExcel';
 
 export default function Navbar({ activeTab, setActiveTab, currentUser, onOpenLogin, onLogout }) {
   
   const handleExportAllExcel = () => {
     const statements = getProcurementStatements();
     const invoices = getSaleInvoices();
+    const settings = getSystemSettings();
 
     const wb = XLSX.utils.book_new();
 
-    // Sheet 1: Inward Lots
-    const lotRows = [];
-    statements.forEach(s => {
-      s.lots.forEach(l => {
-        lotRows.push({
-          'Statement Date': s.date,
-          'Statement No': s.statementNo,
-          'Mill / Consignee': s.millName,
-          'Commodity': s.commodity,
-          'Broker Name': l.brokerName,
-          'Weight (Quintals)': l.weight,
-          'Rate (₹/Qtl)': l.rate,
-          'Bill Amount (₹)': l.billAmount,
-          'Brokerage (1.5%)': l.brokerage,
-          'Total Lot Amount (₹)': l.total,
-          'Cheque No': l.chequeNo,
-          'Stock Status': l.stockStatus,
-          'Net Padta (₹/Qtl)': s.netPadta,
-          'Gross Padta (₹/Qtl)': s.grossPadta
-        });
+    // Add each Mandi Purchase Statement in authentic APMC Saoner format
+    if (statements.length === 0) {
+      const wsEmpty = buildStatementWorksheet({ millName: 'Purchasing', lots: [] }, settings);
+      XLSX.utils.book_append_sheet(wb, wsEmpty, 'Purchasing');
+    } else {
+      const usedNames = new Set();
+      statements.forEach((s, idx) => {
+        const ws = buildStatementWorksheet(s, settings);
+        let tabName = (s.millName || `Statement_${idx + 1}`).replace(/Pvt\.?|Ltd\.?|Industry|Industries/gi, '').trim().split(' ')[0] || `Statement_${idx + 1}`;
+        tabName = tabName.slice(0, 28);
+        if (usedNames.has(tabName)) {
+          tabName = `${tabName}_${idx + 1}`;
+        }
+        usedNames.add(tabName);
+        XLSX.utils.book_append_sheet(wb, ws, tabName);
       });
-    });
-    const wsLots = XLSX.utils.json_to_sheet(lotRows);
-    XLSX.utils.book_append_sheet(wb, wsLots, 'Buying Lots (Inward)');
+    }
 
-    // Sheet 2: Outward Sale Invoices
+    // Outward Sale Invoices Sheet
     const invoiceRows = [];
     invoices.forEach(inv => {
       inv.items.forEach(it => {

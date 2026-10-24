@@ -10,11 +10,13 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { formatIndianCurrency } from '../utils/numberToWords';
+import { exportMultipleStatementsToExcel } from '../utils/exportStatementExcel';
 import { 
   getProcurementStatements, 
   deleteProcurementStatement, 
   getSaleInvoices, 
-  deleteSaleInvoice 
+  deleteSaleInvoice,
+  getSystemSettings
 } from '../utils/storage';
 
 function formatDateDisplay(dateStr) {
@@ -77,36 +79,13 @@ export default function DateArchive() {
     }
   };
 
-  // Export filtered list to Excel
+  // Export filtered list to Excel (using authentic APMC format for statements)
   const handleExportFiltered = () => {
-    const wb = XLSX.utils.book_new();
-
     if (activeSubTab === 'statements') {
-      const rows = [];
-      filteredStatements.forEach(s => {
-        s.lots.forEach(l => {
-          rows.push({
-            'Statement Date': s.date,
-            'Statement No': s.statementNo,
-            'Mill Name': s.millName,
-            'Commodity': s.commodity,
-            'Broker Name': l.brokerName,
-            'Weight (Quintals)': l.weight,
-            'Rate (₹/Qtl)': l.rate,
-            'Bill Amount (₹)': l.billAmount,
-            'Brokerage (1.5%)': l.brokerage,
-            'Lot Total (₹)': l.total,
-            'Cheque No': l.chequeNo,
-            'Net Padta (₹/Qtl)': s.netPadta,
-            'Gross Padta (₹/Qtl)': s.grossPadta,
-            'Grand Total (₹)': s.grandTotal
-          });
-        });
-      });
-      const ws = XLSX.utils.json_to_sheet(rows);
-      XLSX.utils.book_append_sheet(wb, ws, 'Filtered Buying Statements');
-      XLSX.writeFile(wb, `Filtered_Statements_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const settings = getSystemSettings();
+      exportMultipleStatementsToExcel(filteredStatements, settings);
     } else {
+      const wb = XLSX.utils.book_new();
       const rows = [];
       filteredInvoices.forEach(inv => {
         inv.items.forEach(it => {

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { formatIndianCurrency } from '../utils/numberToWords';
+import { exportSingleStatementToExcel } from '../utils/exportStatementExcel';
 import { 
   getSystemSettings, 
   getMasterParties, 
@@ -271,52 +272,53 @@ export default function MandiStatement({ onSaveSuccess }) {
     if (onSaveSuccess) onSaveSuccess();
   };
 
-  // Export current statement to Excel
+  // Export current statement to Excel (matching authentic APMC Saoner format)
   const handleExportExcel = () => {
     const finalMillName = selectedMill === 'OTHER' ? customMill : selectedMill;
-    const wb = XLSX.utils.book_new();
+    const statementObj = {
+      statementNo,
+      date: statementDate,
+      millName: finalMillName,
+      commodity,
+      dispatchBags: bagsCount,
+      dispatchExtraKg: parseInt(dispatchExtraKg) || 0,
+      lots: calculatedLots.map(l => ({
+        brokerName: l.brokerName,
+        qtl: l.qtl,
+        kg: l.kg,
+        weight: l.weight,
+        rate: l.rate,
+        billAmount: l.billAmount,
+        brokerage: l.brokerage,
+        total: l.totalLotAmount,
+        chequeNo: l.chequeNo,
+        stockStatus: l.stockStatus
+      })),
+      totalBags: bagsCount,
+      totalWeight: totalWeightQtl,
+      pureBillAmount: totalPureBill,
+      totalBrokerage,
+      lotPurchaseTotal: totalLotPurchases,
+      netPadta,
+      bardanaRateKg,
+      bardanaWeight: bardanaWeightQtl,
+      grossWeight: grossWeightQtl,
+      mandiSheshPct,
+      mandiSheshAmount,
+      commissionPct,
+      commissionAmount,
+      workerRate,
+      workerCharges: workerChargesAmount,
+      transportRate,
+      transportCharges: transportChargesAmount,
+      bardanaChargesPerBag,
+      bardanaCharges: bardanaChargesAmount,
+      totalExpenses,
+      grandTotal,
+      grossPadta
+    };
 
-    const rows = [
-      ['R. MAHAJAN ENTERPRISE'],
-      ['Agricultural Product Market Committee, Saoner', '', '', '', '', '', '', 'Proprietor : Yash Mahajan'],
-      [`STATEMENT (${finalMillName})`, '', '', '', '', '', '', `Date: ${statementDate}`],
-      ['No.', "Broker's Name", 'Qtl', 'KG', 'Total Weight (Qtl)', 'Rate (₹/Qtl)', 'Bill Amount (₹)', 'Brokerage (1.5%)', 'Total Bill Amount (₹)', 'Check No.', 'Stock']
-    ];
-
-    calculatedLots.forEach((l, idx) => {
-      rows.push([
-        idx + 1,
-        l.brokerName,
-        l.qtl,
-        l.kg,
-        l.weight.toFixed(3),
-        l.rate.toFixed(2),
-        l.billAmount.toFixed(2),
-        l.brokerage.toFixed(2),
-        l.totalLotAmount.toFixed(2),
-        l.chequeNo,
-        l.stockStatus
-      ]);
-    });
-
-    rows.push(['', '', '', '', totalWeightQtl.toFixed(3), '', totalPureBill.toFixed(2), totalBrokerage.toFixed(2), totalLotPurchases.toFixed(2), '', '']);
-    if (bagsCount > 0) {
-      rows.push(['', `${bagsCount} Bags | ${dispatchExtraKg} KG`, '', '', '', '', '', '', '', '']);
-    }
-    rows.push(['', `Net Padta: ₹${netPadta.toFixed(2)} / Qtl`, '', '', '', '', '', '', '', '']);
-    rows.push(['', `Gross Padta: ₹${grossPadta.toFixed(2)} / Qtl`, '', bardanaWeightQtl.toFixed(4), `Bardana Tare: ${bardanaRateKg} kg`, '', mandiSheshAmount.toFixed(2), 'Mandi Shesh', `${mandiSheshPct}%`]);
-    rows.push(['', '', '', grossWeightQtl.toFixed(4), 'Gross Wt (Qtl)', '', commissionAmount.toFixed(2), 'Commission', `${commissionPct}%`]);
-    rows.push(['', '', '', '', '', '', workerChargesAmount.toFixed(2), 'Worker Charges (Hamali)', workerRate]);
-    rows.push(['', '', '', '', '', '', transportChargesAmount.toFixed(2), 'Transportation (Bhada)', transportRate]);
-    if (bardanaChargesAmount > 0) {
-      rows.push(['', '', '', '', '', '', bardanaChargesAmount.toFixed(2), 'Bardana Charges', bardanaChargesPerBag]);
-    }
-    rows.push(['', '', '', '', '', 'Total Mandi Expenses', totalExpenses.toFixed(2), '', '']);
-    rows.push(['', '', '', '', '', 'Grand Total', grandTotal.toFixed(2), '', '']);
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, 'Statement');
-    XLSX.writeFile(wb, `Statement_${finalMillName.replace(/[^a-zA-Z0-9]/g, '_')}_${statementDate}.xlsx`);
+    exportSingleStatementToExcel(statementObj, settings);
   };
 
   return (
